@@ -1,0 +1,2 @@
+[tool.pyrefly]
+site-package-path = ["d:\\ai-contract-generator\\backend\\venv\\Lib\\site-packages"]
