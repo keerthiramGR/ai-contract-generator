@@ -38,6 +38,7 @@ interface FormData {
   houseType?: string;
   landlordName?: string;
   tenantName?: string;
+  governmentContractType?: "construction" | "rental" | "buying" | "";
 }
 
 const PURPOSES: { value: ContractPurpose; label: string }[] = [
@@ -51,6 +52,7 @@ const PURPOSES: { value: ContractPurpose; label: string }[] = [
   { value: "rental", label: "Rental Agreement" },
   { value: "partnership", label: "Partnership Agreement" },
   { value: "service", label: "Service Agreement" },
+  { value: "government", label: "Government Contract" },
 ];
 
 const DEPARTMENTS: Department[] = ["IT", "HR", "Finance", "Marketing", "Operations", "Legal", "Sales"];
@@ -70,58 +72,60 @@ function generateContract(form: FormData, answers: string[]): ReactNode {
   if (form.purpose === 'rental') {
     return (
       <div className="bg-[#fdfcf0] text-black p-8 max-w-3xl mx-auto shadow-sm min-h-[800px] relative font-serif">
-        {/* Stamp Paper Header Mock */}
-        <div className="border-b-4 border-double border-gray-400 pb-4 mb-8 flex flex-col items-center justify-center text-center">
-          <div className="w-full flex justify-between items-start mb-4 px-4">
-             <div className="w-28 h-32 border-[3px] border-green-600 bg-green-50 flex flex-col items-center justify-center text-green-700 font-bold text-center p-2">
-                <span className="text-sm">पचास रुपये</span>
-                <span className="text-2xl my-2">Rs. 50</span>
-                <span className="text-[10px] leading-tight">INDIA NON JUDICIAL</span>
-             </div>
-             <div className="flex flex-col items-center mt-2">
-                <div className="h-16 w-16 opacity-80 mb-2">
-                   {/* Mock Lion Capital Emblem */}
-                   <svg viewBox="0 0 100 100" fill="currentColor" className="text-pink-600">
-                     <path d="M50 10 C30 10 20 30 20 50 C20 70 30 90 50 90 C70 90 80 70 80 50 C80 30 70 10 50 10 Z M50 20 C60 20 70 35 70 50 C70 65 60 80 50 80 C40 80 30 65 30 50 C30 35 40 20 50 20 Z" />
-                     <circle cx="50" cy="50" r="10" />
-                   </svg>
-                </div>
-                <h2 className="text-xl font-bold tracking-widest uppercase text-pink-600">भारत INDIA</h2>
-             </div>
-             <div className="w-28 h-32 border-[3px] border-red-600 bg-red-50 flex flex-col items-center justify-center text-red-700 font-bold text-center p-2">
-                <span className="text-sm">FIFTY RUPEES</span>
-                <span className="text-2xl my-2">Rs. 50</span>
-                <span className="text-[10px] leading-tight">INDIA NON JUDICIAL</span>
-             </div>
-          </div>
-          <h3 className="text-lg font-bold uppercase text-gray-700 mt-2">தமிழ்நாடு  Tamilnadu</h3>
-        </div>
+        <img src="/stamp-bg.jpg" alt="Stamp Paper" className="w-full mb-8 object-contain" />
 
-        <h3 className="text-center font-bold text-xl mb-8">Rental Agreement</h3>
+        <h3 className="text-center font-bold text-xl mb-8">Commercial Property Rental Agreement</h3>
         
-        <p className="text-justify leading-loose mb-4">
-          THIS LEASE DEED is made and executed at <strong>{form.city || 'Chennai'}</strong> on this <strong>{today}</strong> 
-          by and between <strong>{form.landlordName || '[Landlord Name]'}</strong> (hereinafter jointly and severally 
-          called the "Landlady/Landlord", which expression shall include their heirs, legal representatives, successors and assigns).
+        <p className="text-justify leading-loose mb-6">
+          THIS INDENTURE of lease is made at <span className="bg-yellow-300 px-1 font-bold">[{form.city || 'COIMBATORE'}]</span> this <span className="bg-yellow-300 px-1 font-bold">[{today}]</span>, 
+          between <span className="bg-yellow-300 px-1 font-bold">[{form.landlordName || 'C. Dinesh Son of [CHINADURAI]'}]</span> resident of <span className="bg-yellow-300 px-1 font-bold">[{form.state || '954-A, Saraex,MTP Road,RS Puram, Coimbatore, Tamil Nadu 641002'}]</span>, 
+          (hereinafter called "the Lessor", which expression shall, unless repugnant to the context and meaning include his heirs, successors, administrators and assigns) of the ONE PART and 
+          <span className="bg-yellow-300 px-1 font-bold">[{form.tenantName || 'Sathishkumar.S Son of [SELVARAJ]'}]</span> resident of <span className="bg-yellow-300 px-1 font-bold">[{form.country || '151A,MARRIYAMMAN KOVIL STREET ,KRISHNA RAYAPURAM,COIMBATORE -641006'}]</span>, 
+          (hereinafter called "the Lessee", which expression shall, unless repugnant to the context and meaning, include its successors and assigns) of the OTHER PART.
         </p>
 
-        <p className="text-center font-bold my-4">AND</p>
-
-        <p className="text-justify leading-loose mb-8">
-          <strong>{form.tenantName || '[Tenant Name]'}</strong> having permanent address at <strong>{form.state || '[State]'}, {form.country || 'India'}</strong> 
-          and having ID card issued by Government Of India, (hereinafter called the "Tenant", which expression shall include their legal representatives, successors and assigns).
+        <p className="text-justify leading-loose mb-6">
+          WHEREAS the lessor is absolutely seized and possessed or otherwise well and sufficiently entitled to the premises at <span className="bg-yellow-300 px-1 font-bold">[{form.city || 'Coimbatore'}]</span> with a total area of <span className="bg-yellow-300 px-1 font-bold">[{form.houseType || '1750 square feet'}]</span>.
         </p>
 
-        <div className="space-y-4 mb-12">
-          <p><strong>1. Details of Premises:</strong> A <strong>{form.houseType || 'residential'}</strong> property located in <strong>{form.city || '[City]'}</strong>.</p>
-          <p><strong>2. Rent Amount:</strong> The monthly rent shall be <strong>{form.rentAmount || '[Amount]'}</strong>.</p>
-          <p><strong>3. Duration:</strong> This agreement is valid for a period of <strong>{DURATIONS.find((d) => d.value === form.duration)?.label || "As agreed"}</strong>.</p>
-          {form.additionalNotes && <p><strong>4. Additional Terms:</strong> {form.additionalNotes}</p>}
-        </div>
+        <p className="text-justify leading-loose mb-6">
+          AND WHEREAS on the request of the Lessee, the Lessor has agreed to grant lease in respect of the demised premises for a term of <span className="bg-yellow-300 px-1 font-bold">[{DURATIONS.find((d) => d.value === form.duration)?.label || "TWO YEARS"}]</span> in the manner hereinafter appearing.
+        </p>
+
+        <p className="text-justify leading-loose mb-6">
+          <strong>1. RENT AND DEPOSIT:</strong> The Lessee agrees to pay a monthly rent of <span className="bg-yellow-300 px-1 font-bold">[{form.rentAmount || 'Rs. 25,000/-'}]</span> to the Lessor on or before the 5th day of every calendar month. The Lessee has paid an interest-free security deposit of Rs. 1,50,000/- (Rupees One Lakh Fifty Thousand Only) to the Lessor, the receipt of which the Lessor hereby acknowledges. This deposit shall be refunded to the Lessee at the time of vacating the premises, subject to deductions for any damages or unpaid dues.
+        </p>
+
+        <p className="text-justify leading-loose mb-6">
+          <strong>2. MAINTENANCE AND REPAIRS:</strong> The Lessee shall maintain the demised premises in good and tenantable condition. Routine maintenance, minor electrical and plumbing repairs shall be borne by the Lessee. Major structural repairs, including roof leakage or severe plumbing blockages, shall be the responsibility of the Lessor. The Lessee shall not make any structural additions or alterations to the premises without prior written consent from the Lessor.
+        </p>
+
+        <p className="text-justify leading-loose mb-6">
+          <strong>3. USE OF PREMISES:</strong> The premises shall be strictly used for commercial purposes only, specifically for running a legitimate business. The Lessee shall not use the premises for any illegal, hazardous, or offensive activities that may cause nuisance to neighbors or violate local municipal laws. Sub-letting of the premises, either in part or in full, is strictly prohibited without the express written permission of the Lessor.
+        </p>
+
+        <p className="text-justify leading-loose mb-6">
+          <strong>4. TERMINATION AND NOTICE:</strong> Both parties have the right to terminate this lease agreement by providing a written notice of three (3) months to the other party. In the event of a breach of any terms by the Lessee, the Lessor reserves the right to terminate the agreement with a one (1) month notice. Upon termination, the Lessee must hand over vacant possession of the premises in its original condition, subject to normal wear and tear.
+        </p>
+        
+        {form.additionalNotes && (
+          <p className="text-justify leading-loose mb-6">
+            <strong>5. ADDITIONAL TERMS:</strong> <span className="bg-yellow-300 px-1 font-bold">[{form.additionalNotes}]</span>
+          </p>
+        )}
+
+        {answers.length > 0 && (
+          <div className="text-justify leading-loose mb-6">
+             <strong>6. AI GENERATED ADDENDUM:</strong>
+             <ul className="list-disc pl-5 mt-2">
+                {answers.map((a, i) => <li key={i} className="mb-2"><span className="bg-yellow-300 px-1 font-bold">[{a}]</span></li>)}
+             </ul>
+          </div>
+        )}
 
         <div className="mt-16 grid grid-cols-2 gap-12">
            <div>
-              <p className="font-bold mb-4">Tenant Signature:</p>
+              <p className="font-bold mb-4">Lessor Signature:</p>
               <div className="border border-dashed border-gray-400 p-4 bg-gray-50/50 flex flex-col items-center justify-center h-32 hover:bg-gray-100 transition-colors">
                  <label className="cursor-pointer flex flex-col items-center w-full h-full justify-center">
                     <Download className="h-6 w-6 text-gray-400 mb-2" />
@@ -131,7 +135,119 @@ function generateContract(form: FormData, answers: string[]): ReactNode {
               </div>
            </div>
            <div>
-              <p className="font-bold mb-4">Government Sign / Stamp:</p>
+              <p className="font-bold mb-4">Lessee Signature:</p>
+              <div className="border border-dashed border-gray-400 p-4 bg-gray-50/50 flex flex-col items-center justify-center h-32 hover:bg-gray-100 transition-colors">
+                 <label className="cursor-pointer flex flex-col items-center w-full h-full justify-center">
+                    <Download className="h-6 w-6 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-500">Upload Signature Image</span>
+                    <input type="file" className="hidden" accept="image/*" />
+                 </label>
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (form.purpose === 'government') {
+    let title = "அரசு ஒப்பந்தம்";
+    let bodyText: any[] = [];
+
+    if (form.governmentContractType === 'construction') {
+      title = "அரசு கட்டுமான ஒப்பந்தம்";
+      bodyText = [
+        <p key="1" className="text-justify leading-loose mb-6">
+          இந்த ஒப்பந்தம் <span className="bg-yellow-300 px-1 font-bold">[{company?.name || "[Company Name]"}]</span> மற்றும் தமிழ்நாடு அரசு பொதுப்பணித் துறைக்கும் இடையே <span className="bg-yellow-300 px-1 font-bold">[{today}]</span> அன்று <span className="bg-yellow-300 px-1 font-bold">[{form.city || "[City]"}]</span> இல் முறையாக கையெழுத்தாகிறது. இந்த ஒப்பந்தம் அரசு அங்கீகரிக்கப்பட்ட உள்கட்டமைப்பு மற்றும் கட்டுமான திட்டங்களை குறித்த காலக்கெடுவுக்குள் சர்வதேச தரத்திற்கு ஏற்ப நிறைவேற்ற வகை செய்கிறது.
+        </p>,
+        <p key="2" className="text-justify leading-loose mb-6">
+          <strong>1. திட்டத்தின் பெயர் மற்றும் நோக்கம்:</strong> அரசால் அங்கீகரிக்கப்பட்ட இந்த கட்டுமான திட்டத்தின் முழுமையான பொறுப்பும் ஒப்பந்ததாரரைச் சாரும். வரைபடங்கள் மற்றும் அரசு பொறியாளர்கள் வழங்கிய மதிப்பீடுகளுக்கு ஏற்ப தரமான கட்டுமானப் பொருட்கள் (Quality Materials) மட்டுமே பயன்படுத்தப்பட வேண்டும். ஏதேனும் முரண்பாடுகள் இருப்பின், உடனடியாக அரசு அதிகாரிகளுக்கு எழுத்துப்பூர்வமாக தெரிவிக்க வேண்டும்.
+        </p>,
+        <p key="3" className="text-justify leading-loose mb-6">
+          <strong>2. கால அளவு மற்றும் அபராதம்:</strong> இந்த ஒப்பந்தம் <span className="bg-yellow-300 px-1 font-bold">[{DURATIONS.find((d) => d.value === form.duration)?.label || "குறிப்பிடப்பட்ட"}]</span> காலத்திற்கு செல்லுபடியாகும். குறித்த காலக்கெடுவுக்குள் பணி நிறைவடையவில்லை என்றால், தாமதமாகும் ஒவ்வொரு நாளுக்கும் ஒப்பந்த மதிப்பில் 0.5% அபராதமாக (Liquidated Damages) விதிக்கப்படும். இயற்கை சீற்றங்கள் அல்லது தவிர்க்க முடியாத காரணங்களால் ஏற்படும் தாமதங்களுக்கு மட்டுமே விலக்கு அளிக்கப்படும்.
+        </p>,
+        <p key="4" className="text-justify leading-loose mb-6">
+          <strong>3. நிதி மற்றும் பில் வழங்குதல்:</strong> ஒப்பந்ததாரர் திட்டத்தின் மைல்கற்களை எட்டியதும், அரசு விதிமுறைகளுக்கு உட்பட்டு பில்களை சமர்ப்பிக்க வேண்டும். அரசுப் பொறியாளர் மற்றும் ஆய்வாளர்களால் பணிகள் தரம் சரிபார்க்கப்பட்ட பின்னரே அதற்கான தொகை விடுவிக்கப்படும். சட்டப்பூர்வ வரி பிடித்தங்கள் (TDS, GST) போக மீதமுள்ள தொகை வங்கி கணக்கிற்கு மாற்றப்படும்.
+        </p>,
+        <p key="5" className="text-justify leading-loose mb-6">
+          <strong>4. பாதுகாப்பு மற்றும் தொழிலாளர் நலன்:</strong> கட்டுமான தளத்தில் பணியாற்றும் அனைத்து தொழிலாளர்களுக்கும் தேவையான பாதுகாப்பு உபகரணங்கள் மற்றும் காப்பீடுகளை ஒப்பந்ததாரர் வழங்க வேண்டும். குழந்தை தொழிலாளர் முறை முற்றிலும் தடை செய்யப்பட்டுள்ளது. விபத்துகள் ஏதேனும் நிகழ்ந்தால், முழு இழப்பீடும் ஒப்பந்ததாரரால் மட்டுமே வழங்கப்பட வேண்டும்; அரசு இதற்கு எவ்விதத்திலும் பொறுப்பேற்காது.
+        </p>
+      ];
+    } else if (form.governmentContractType === 'rental') {
+      title = "அரசு வாடகை ஒப்பந்தம்";
+      bodyText = [
+        <p key="1" className="text-justify leading-loose mb-6">
+          இந்த வாடகை ஒப்பந்தம் <span className="bg-yellow-300 px-1 font-bold">[{company?.name || "[Company Name]"}]</span> மற்றும் தமிழ்நாடு அரசு வருவாய்த்துறைக்கும் இடையே <span className="bg-yellow-300 px-1 font-bold">[{today}]</span> அன்று <span className="bg-yellow-300 px-1 font-bold">[{form.city || "[City]"}]</span> இல் முறையாக கையெழுத்தாகிறது. இது அரசு அலுவலக பயன்பாட்டிற்காக தனியார் அல்லது பொது கட்டிடத்தை வாடகைக்கு எடுப்பதற்கான முழுமையான சட்டப்பூர்வ ஆவணமாகும்.
+        </p>,
+        <p key="2" className="text-justify leading-loose mb-6">
+          <strong>1. சொத்து விவரம் மற்றும் வாடகை:</strong> அரசுக்கு சொந்தமான அல்லது அரசு பயன்பாட்டிற்கான இடத்தை வாடகைக்கு விடுவதற்கான ஒப்பந்தம். மாதாந்திர வாடகை <span className="bg-yellow-300 px-1 font-bold">[{form.rentAmount || 'நிர்ணயிக்கப்பட்ட தொகை'}]</span> ஆக நிர்ணயிக்கப்பட்டுள்ளது. இந்தத் தொகை ஒவ்வொரு மாதமும் 5-ஆம் தேதிக்குள் அரசு கணக்கிலிருந்து உரிமையாளரின் வங்கி கணக்கிற்கு நேரடியாக செலுத்தப்படும். முன்தொகை (Advance Deposit) ஏதேனும் இருப்பின் அது திருப்பித் தரப்படும் நிபந்தனைக்கு உட்பட்டது.
+        </p>,
+        <p key="3" className="text-justify leading-loose mb-6">
+          <strong>2. கால அளவு மற்றும் புதுப்பித்தல்:</strong> இந்த ஒப்பந்தம் <span className="bg-yellow-300 px-1 font-bold">[{DURATIONS.find((d) => d.value === form.duration)?.label || "குறிப்பிடப்பட்ட"}]</span> காலத்திற்கு செல்லுபடியாகும். ஒப்பந்த காலக்கெடு முடிவதற்கு மூன்று மாதங்களுக்கு முன்பாக இரு தரப்பினரின் ஒப்புதலோடு ஒப்பந்தத்தை நீட்டிக்கவோ அல்லது திருத்தவோ முடியும். அரசு தரப்பில் முன்னறிவிப்பு ஏதுமின்றி வாடகையை அதிகரிக்க உரிமையாளருக்கு அதிகாரம் இல்லை.
+        </p>,
+        <p key="4" className="text-justify leading-loose mb-6">
+          <strong>3. பராமரிப்பு மற்றும் வரி:</strong> சொத்தின் அடிப்படை கட்டமைப்பு பராமரிப்பு மற்றும் பெரிய அளவிலான பழுதுபார்ப்புகளை உரிமையாளரே மேற்கொள்ள வேண்டும். மின்சாரம் மற்றும் குடிநீர் கட்டணங்களை அரசு செலுத்தும். சொத்து வரி மற்றும் உள்ளாட்சி வரிகள் அனைத்தையும் உரிமையாளரே தனது சொந்த செலவில் செலுத்த வேண்டும். 
+        </p>,
+        <p key="5" className="text-justify leading-loose mb-6">
+          <strong>4. ரத்து செய்யும் அதிகாரம்:</strong> எதிர்பாராத நிர்வாக காரணங்களுக்காக இடமாற்றம் தேவைப்பட்டால், ஒரு மாத முன்னறிவிப்புடன் இந்த வாடகை ஒப்பந்தத்தை ரத்து செய்ய அரசுக்கு முழு உரிமை உண்டு. அதேபோல உரிமையாளர் ஒப்பந்தத்தை ரத்து செய்ய விரும்பினால், அரசுக்கு மாற்று இடம் தேட மூன்று மாத கால அவகாசம் வழங்க வேண்டும்.
+        </p>
+      ];
+    } else if (form.governmentContractType === 'buying') {
+      title = "அரசு கொள்முதல் ஒப்பந்தம்";
+      bodyText = [
+        <p key="1" className="text-justify leading-loose mb-6">
+          இந்த கொள்முதல் ஒப்பந்தம் விநியோகஸ்தரான <span className="bg-yellow-300 px-1 font-bold">[{company?.name || "[Company Name]"}]</span> மற்றும் தமிழ்நாடு அரசு விநியோகக் கழகத்திற்கும் இடையே <span className="bg-yellow-300 px-1 font-bold">[{today}]</span> அன்று <span className="bg-yellow-300 px-1 font-bold">[{form.city || "[City]"}]</span> இல் கையெழுத்தாகிறது. இந்த ஒப்பந்தம் அரசின் பல்வேறு துறைகளுக்கு தேவையான பொருட்கள் மற்றும் சேவைகளை விதிமுறைகளுக்கு உட்பட்டு வழங்குவதை உறுதி செய்கிறது.
+        </p>,
+        <p key="2" className="text-justify leading-loose mb-6">
+          <strong>1. கொள்முதல் விவரம் மற்றும் தரம்:</strong> ஒப்பந்ததாரர் அரசு கோரியுள்ள பொருட்களின் விபரக்குறிப்புகள் (Specifications) மற்றும் தரக்கட்டுப்பாடுகளை துல்லியமாகப் பின்பற்ற வேண்டும். ஏதேனும் பொருட்கள் தரக்குறைவாகவோ அல்லது பழுதாகவோ காணப்பட்டால், அவை நிராகரிக்கப்படும்; நிராகரிக்கப்பட்ட பொருட்களை ஒப்பந்ததாரர் தனது சொந்த செலவில் மாற்றித் தர வேண்டும்.
+        </p>,
+        <p key="3" className="text-justify leading-loose mb-6">
+          <strong>2. விநியோக காலம் மற்றும் அபராதம்:</strong> இந்த ஒப்பந்தம் <span className="bg-yellow-300 px-1 font-bold">[{DURATIONS.find((d) => d.value === form.duration)?.label || "குறிப்பிடப்பட்ட"}]</span> காலத்திற்கு செல்லுபடியாகும். கொள்முதல் ஆணையில் (Purchase Order) குறிப்பிடப்பட்ட தேதியிலிருந்து குறிப்பிட்ட காலத்திற்குள் பொருட்கள் குறிப்பிட்ட அரசு குடோன்கள் அல்லது அலுவலகங்களில் ஒப்படைக்கப்பட வேண்டும். தாமதம் ஏற்பட்டால், வாரத்திற்கு 1% வீதம் அதிகபட்சம் 10% வரை அபராதம் (Penalty) விதிக்கப்படும்.
+        </p>,
+        <p key="4" className="text-justify leading-loose mb-6">
+          <strong>3. பற்றுச்சீட்டு மற்றும் பணப் பட்டுவாடா:</strong> பொருட்கள் முறையாக பெறப்பட்டு, ஆய்வுக்குழுவின் சான்றிதழ் (Inspection Certificate) வழங்கப்பட்ட பிறகே 100% கட்டணம் விடுவிக்கப்படும். இதற்கான ரசீதுகள் மற்றும் பில்கள் 3 நகல்களில் சமர்ப்பிக்கப்பட வேண்டும். அனைத்து கொடுப்பனவுகளும் அரசு கருவூலம் வழியாக மின்னணு முறையில் (ECS) மட்டுமே செய்யப்படும்.
+        </p>,
+        <p key="5" className="text-justify leading-loose mb-6">
+          <strong>4. உத்தரவாதம் மற்றும் பராமரிப்பு:</strong> விநியோகிக்கப்படும் இயந்திரங்கள் மற்றும் உபகரணங்களுக்கு குறைந்தபட்சம் 1 முதல் 3 ஆண்டுகள் வரை உத்தரவாதம் (Warranty) வழங்கப்பட வேண்டும். இந்த காலகட்டத்தில் ஏற்படும் எந்தவொரு பழுதுகளையும் ஒப்பந்ததாரர் கட்டணமின்றி சரிசெய்து தர வேண்டும். உத்தரவாத காலத்திற்கு பிந்தைய பராமரிப்பு ஒப்பந்தம் (AMC) தேவைப்பட்டால் அது தனியாக கையெழுத்திடப்படும்.
+        </p>
+      ];
+    }
+
+    return (
+      <div className="bg-[#fdfcf0] text-black p-8 max-w-3xl mx-auto shadow-sm min-h-[800px] relative font-serif">
+        <img src="/stamp-bg.jpg" alt="Stamp Paper" className="w-full mb-8 object-contain" />
+
+        <h3 className="text-center font-bold text-2xl mb-8">{title}</h3>
+        
+        {bodyText}
+
+        {form.additionalNotes && (
+          <p className="text-justify leading-loose mb-6">
+            <strong>கூடுதல் குறிப்புகள் (Additional Notes):</strong> <span className="bg-yellow-300 px-1 font-bold">[{form.additionalNotes}]</span>
+          </p>
+        )}
+
+        {answers.length > 0 && (
+          <div className="text-justify leading-loose mb-6">
+             <strong>AI வழங்கிய கூடுதல் நிபந்தனைகள்:</strong>
+             <ul className="list-disc pl-5 mt-2">
+                {answers.map((a, i) => <li key={i} className="mb-2"><span className="bg-yellow-300 px-1 font-bold">[{a}]</span></li>)}
+             </ul>
+          </div>
+        )}
+
+        <div className="mt-16 grid grid-cols-2 gap-12">
+           <div>
+              <p className="font-bold mb-4">கையொப்பம் (Signature):</p>
+              <div className="border border-dashed border-gray-400 p-4 bg-gray-50/50 flex flex-col items-center justify-center h-32 hover:bg-gray-100 transition-colors">
+                 <label className="cursor-pointer flex flex-col items-center w-full h-full justify-center">
+                    <Download className="h-6 w-6 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-500">Upload Signature Image</span>
+                    <input type="file" className="hidden" accept="image/*" />
+                 </label>
+              </div>
+           </div>
+           <div>
+              <p className="font-bold mb-4">அரசு முத்திரை (Government Stamp):</p>
               <div className="border border-solid border-gray-300 p-4 h-32 flex items-center justify-center">
                  <span className="text-gray-300 uppercase tracking-widest text-sm">Official Stamp Space</span>
               </div>
@@ -140,6 +256,7 @@ function generateContract(form: FormData, answers: string[]): ReactNode {
       </div>
     );
   }
+
 
   const contractText = `${company?.name?.toUpperCase() || "COMPANY"} ${purposeLabel.toUpperCase()}
 
@@ -249,7 +366,9 @@ export default function CreateContractPage() {
   const [submitted, setSubmitted] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const questions = form.purpose ? (AI_FOLLOW_UP_QUESTIONS[form.purpose] || []) : [];
+  const questions = form.purpose === 'government' && form.governmentContractType 
+    ? (AI_FOLLOW_UP_QUESTIONS[`government_${form.governmentContractType}`] || []) 
+    : form.purpose ? (AI_FOLLOW_UP_QUESTIONS[form.purpose] || []) : [];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -360,6 +479,8 @@ export default function CreateContractPage() {
 
   const isStep1Valid = form.purpose === 'rental' 
     ? (form.companyId && form.duration && form.houseType && form.rentAmount && form.landlordName && form.tenantName)
+    : form.purpose === 'government'
+    ? (form.duration && form.governmentContractType)
     : (form.companyId && form.purpose && form.department && form.duration);
 
   const STEP_LABELS = ["Contract Details", "AI Q&A", "Review Contract", "Submitted"];
@@ -418,21 +539,23 @@ export default function CreateContractPage() {
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5">
-              {/* Company */}
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium mb-1.5" htmlFor="select-company">Company</label>
-                <Select
-                  id="select-company"
-                  value={form.companyId}
-                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  className="h-10"
-                >
-                  <option value="">▼ Select Company</option>
-                  {COMPANIES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name} {c.verified ? "✓" : ""}</option>
-                  ))}
-                </Select>
-              </div>
+              {/* Company - hide for government */}
+              {form.purpose !== 'government' && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium mb-1.5" htmlFor="select-company">Company</label>
+                  <Select
+                    id="select-company"
+                    value={form.companyId}
+                    onChange={(e) => setForm({ ...form, companyId: e.target.value })}
+                    className="h-10"
+                  >
+                    <option value="">▼ Select Company</option>
+                    {COMPANIES.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} {c.verified ? "✓" : ""}</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
 
               {/* Purpose */}
               <div className="sm:col-span-2">
@@ -450,8 +573,26 @@ export default function CreateContractPage() {
                 </Select>
               </div>
 
-              {/* Department - hide for rental */}
-              {form.purpose !== 'rental' && (
+              {/* Government Contract Type */}
+              {form.purpose === 'government' && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium mb-1.5" htmlFor="select-gov-type">Government Contract Type</label>
+                  <Select
+                    id="select-gov-type"
+                    value={form.governmentContractType || ''}
+                    onChange={(e) => setForm({ ...form, governmentContractType: e.target.value as "construction" | "rental" | "buying" | "" })}
+                    className="h-10"
+                  >
+                    <option value="">▼ Select Type</option>
+                    <option value="construction">Construction (கட்டுமானம்)</option>
+                    <option value="rental">Rental (வாடகை)</option>
+                    <option value="buying">Buying / Procurement (கொள்முதல்)</option>
+                  </Select>
+                </div>
+              )}
+
+              {/* Department - hide for rental and government */}
+              {form.purpose !== 'rental' && form.purpose !== 'government' && (
                 <div>
                   <label className="block text-sm font-medium mb-1.5" htmlFor="select-department">Department</label>
                   <Select
@@ -507,7 +648,7 @@ export default function CreateContractPage() {
               </div>
 
               {/* Conditional Non-Rental Fields */}
-              {form.purpose !== 'rental' && (
+              {form.purpose !== 'rental' && form.purpose !== 'government' && (
                 <>
                   {/* Salary */}
                   <div>

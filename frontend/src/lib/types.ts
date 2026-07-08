@@ -9,7 +9,8 @@ export type ContractPurpose =
   | "consultancy"
   | "rental"
   | "partnership"
-  | "service";
+  | "service"
+  | "government";
 export type Department = "IT" | "HR" | "Finance" | "Marketing" | "Operations" | "Legal" | "Sales";
 export type ContractDuration = "3months" | "6months" | "1year" | "2years" | "custom";
 

@@ -541,6 +541,27 @@ export const AI_FOLLOW_UP_QUESTIONS: Record<string, string[]> = {
     "What are the payment milestones?",
     "What are the termination and exit provisions?",
   ],
+  government_construction: [
+    "What is the total budget allocated for this construction project?",
+    "What are the specific milestones and delivery dates?",
+    "Are there any specific government regulations or compliance standards to meet?",
+    "What are the terms for materials procurement?",
+    "How will project delays or force majeure events be handled?",
+  ],
+  government_rental: [
+    "What is the exact location of the government property being rented?",
+    "What is the lease duration and renewal conditions?",
+    "Who is responsible for property maintenance and repairs?",
+    "What is the agreed monthly/annual rent amount?",
+    "Are there any restrictions on the use of the property?",
+  ],
+  government_buying: [
+    "What specific goods or services are being procured?",
+    "What is the delivery schedule and location?",
+    "What are the warranty and defect liability periods?",
+    "What is the payment structure and required documentation for invoicing?",
+    "Are there any penalties for late delivery or non-compliance?",
+  ],
 };
 
 export const PURPOSE_LABELS: Record<string, string> = {
@@ -554,4 +575,5 @@ export const PURPOSE_LABELS: Record<string, string> = {
   rental: "Rental Agreement",
   partnership: "Partnership Agreement",
   service: "Service Agreement",
+  government: "Government Contract",
 };
