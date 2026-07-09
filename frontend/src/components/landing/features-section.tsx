@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -91,13 +92,62 @@ const FEATURES = [
 
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.08 } },
+  visible: { transition: { staggerChildren: 0.1 } },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 25 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring" as const, 
+      stiffness: 85, 
+      damping: 15 
+    } 
+  },
 };
+
+interface SpotlightCardProps {
+  children: React.ReactNode;
+  variants: typeof itemVariants;
+}
+
+function SpotlightFeatureCard({ children, variants }: SpotlightCardProps) {
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCoords({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  return (
+    <motion.div
+      variants={variants}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group relative overflow-hidden rounded-2xl glass-card p-6 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.015] cursor-default"
+    >
+      {/* Dynamic spotlight tracking effect */}
+      {isHovered && (
+        <div
+          className="pointer-events-none absolute -inset-px transition-opacity duration-300 z-0"
+          style={{
+            background: `radial-gradient(150px circle at ${coords.x}px ${coords.y}px, oklch(0.48 0.15 45 / 8%), transparent 80%)`,
+          }}
+        />
+      )}
+      <div className="relative z-10 pointer-events-none">
+        {children}
+      </div>
+    </motion.div>
+  );
+}
 
 export function FeaturesSection() {
   return (
@@ -108,19 +158,19 @@ export function FeaturesSection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
+          transition={{ type: "spring", stiffness: 70, damping: 15 }}
           className="text-center mb-16"
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-4">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Everything you need
           </span>
-          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4 font-heading">
             Powerful features for{" "}
             <span className="brand-gradient-text">every workflow</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            From AI-powered generation to company approval workflows — ContractAI
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-sans">
+            From AI-powered generation to company approval workflows — Accord
             handles every step of the contract lifecycle.
           </p>
         </motion.div>
@@ -136,31 +186,25 @@ export function FeaturesSection() {
           {FEATURES.map((feature) => {
             const Icon = feature.icon;
             return (
-              <motion.div
+              <SpotlightFeatureCard
                 key={feature.title}
                 variants={itemVariants}
-                className="group relative glass-card rounded-2xl p-6 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1"
               >
-                {/* Gradient background on hover */}
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-primary/3 to-transparent" />
-
-                <div className="relative">
-                  {/* Icon */}
-                  <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${feature.color} mb-4 shadow-lg`}>
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-
-                  {/* Badge */}
-                  <span className="ml-2 inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {feature.badge}
-                  </span>
-
-                  <h3 className="mt-3 text-base font-semibold">{feature.title}</h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
+                {/* Icon */}
+                <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${feature.color} mb-4 shadow-lg`}>
+                  <Icon className="h-5 w-5 text-white" />
                 </div>
-              </motion.div>
+
+                {/* Badge */}
+                <span className="ml-2 inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {feature.badge}
+                </span>
+
+                <h3 className="mt-3 text-base font-semibold font-heading">{feature.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed font-sans">
+                  {feature.description}
+                </p>
+              </SpotlightFeatureCard>
             );
           })}
         </motion.div>

@@ -19,6 +19,7 @@ import {
 import { UserButton, useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { Logo } from "@/components/ui/logo";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -42,24 +43,22 @@ export function UserSidebar({ collapsed, setCollapsed }: UserSidebarProps) {
   return (
     <motion.aside
       animate={{ width: collapsed ? 72 : 256 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       className="relative hidden lg:flex flex-col h-screen sticky top-0 border-r border-border/50 bg-sidebar overflow-hidden shrink-0"
     >
       {/* Logo */}
       <div className={cn("flex items-center h-16 px-4 border-b border-border/50", collapsed && "justify-center")}>
-        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm">
-            <FileText className="h-4 w-4 text-primary-foreground" />
-          </div>
+        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0 group">
+          <Logo className="h-7 w-7 text-primary transition-transform duration-300 group-hover:rotate-6" />
           <AnimatePresence>
             {!collapsed && (
               <motion.span
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                className="text-base font-bold whitespace-nowrap overflow-hidden"
+                className="text-base font-bold whitespace-nowrap overflow-hidden font-heading"
               >
-                Contract<span className="brand-gradient-text">AI</span>
+                Accord
               </motion.span>
             )}
           </AnimatePresence>
@@ -126,10 +125,10 @@ export function UserSidebar({ collapsed, setCollapsed }: UserSidebarProps) {
       {/* Footer: user info */}
       <div className={cn("p-3 border-t border-border/50", collapsed && "flex justify-center")}>
         {collapsed ? (
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
         ) : (
           <div className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-accent transition-colors">
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">{user?.fullName || "User"}</p>
               <p className="text-xs text-muted-foreground truncate">

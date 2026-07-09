@@ -96,7 +96,7 @@ export default function ChatPage() {
           <Bot className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h1 className="font-semibold">ContractAI Legal Assistant</h1>
+          <h1 className="font-semibold">Accord Legal Assistant</h1>
           <p className="text-xs text-muted-foreground">Ask anything about contracts and legal documents</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -202,7 +202,7 @@ export default function ChatPage() {
           </Button>
         </div>
         <p className="text-center text-[10px] text-muted-foreground mt-2">
-          ContractAI provides general information only. Not legal advice. Consult a qualified attorney for legal decisions.
+          Accord provides general information only. Not legal advice. Consult a qualified attorney for legal decisions.
         </p>
       </div>
     </div>

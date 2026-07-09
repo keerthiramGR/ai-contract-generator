@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,8 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CONTRACTS } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 type Action = "approve" | "reject" | "changes" | null;
 
@@ -27,13 +27,121 @@ const STATUS_LABEL: Record<ContractStatus, string> = {
 export default function AdminContractReviewPage() {
   const { id } = useParams();
   const router = useRouter();
-  const contract = CONTRACTS.find((c) => c.id === id);
 
+  const [contract, setContract] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<Action>(null);
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<"approved" | "rejected" | "changes" | null>(null);
+
+  const mapStatus = (dbStatus: string): ContractStatus => {
+    const s = dbStatus.toLowerCase();
+    if (s.includes("pending")) return "pending";
+    if (s.includes("approved")) return "approved";
+    if (s.includes("rejected")) return "rejected";
+    if (s.includes("changes") || s.includes("requested")) return "changes_requested";
+    return "draft";
+  };
+
+  useEffect(() => {
+    async function loadContractData() {
+      if (!id) return;
+      const { data, error } = await supabase
+        .from("contracts")
+        .select("*, companies(company_name), profiles(full_name, email)")
+        .eq("id", id)
+        .single();
+
+      if (!error && data) {
+        setContract({
+          id: data.id,
+          userId: data.user_id,
+          title: data.title,
+          status: mapStatus(data.status),
+          createdAt: data.created_at,
+          companyName: data.companies?.company_name || data.purpose || "Contract",
+          userName: data.profiles?.full_name || "User",
+          userEmail: data.profiles?.email || "",
+          purpose: data.purpose,
+          department: data.purpose,
+          duration: "1 year",
+          salary: data.salary || "",
+          location: { country: "India", state: "Tamil Nadu", city: "Chennai" },
+          content: data.generated_content,
+          riskScore: data.risk_score || 0,
+          aiSummary: data.ai_summary || "No summary available.",
+        });
+      }
+      setLoading(false);
+    }
+    loadContractData();
+  }, [id]);
+
+  const handleSubmit = async () => {
+    if (!action || !contract) return;
+    setIsSubmitting(true);
+
+    let dbStatus = "Draft";
+    let eventType = "Created";
+    if (action === "approve") {
+      dbStatus = "Approved";
+      eventType = "Approved";
+    } else if (action === "reject") {
+      dbStatus = "Rejected";
+      eventType = "Rejected";
+    } else if (action === "changes") {
+      dbStatus = "Needs Changes";
+      eventType = "Needs Changes";
+    }
+
+    try {
+      // 1. Update contract status and comments
+      const { error: updateError } = await supabase
+        .from("contracts")
+        .update({
+          status: dbStatus,
+          review_comments: comment,
+        })
+        .eq("id", contract.id);
+
+      if (updateError) throw updateError;
+
+      // 2. Log event in contract_events
+      await supabase
+        .from("contract_events")
+        .insert({
+          contract_id: contract.id,
+          event_type: eventType,
+        });
+
+      // 3. Create notification for the user
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: contract.userId,
+          title: `Contract ${dbStatus}`,
+          description: `Your contract "${contract.title}" has been reviewed. Status: ${dbStatus}.`,
+          notification_type: "contract_update",
+        });
+
+      setSubmitted(true);
+      setResult(action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes");
+    } catch (err) {
+      console.error("Error submitting review action:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!contract) {
     return (
@@ -43,16 +151,6 @@ export default function AdminContractReviewPage() {
       </div>
     );
   }
-
-  const handleSubmit = () => {
-    if (!action) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitted(true);
-      setResult(action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes");
-    }, 1800);
-  };
 
   if (submitted) {
     const isApproved = result === "approved";
@@ -114,7 +212,7 @@ export default function AdminContractReviewPage() {
           </p>
         </div>
         <Badge variant={contract.status === "pending" ? "warning" : contract.status === "approved" ? "success" : "destructive"}>
-          {STATUS_LABEL[contract.status]}
+          {STATUS_LABEL[contract.status as ContractStatus] || STATUS_LABEL.draft}
         </Badge>
       </motion.div>
 
@@ -165,7 +263,7 @@ export default function AdminContractReviewPage() {
             </div>
             <div className="h-72 overflow-y-auto rounded-xl border border-border/50 bg-muted/30 p-4">
               <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                {`${contract.title.toUpperCase()}\n\nThis contract is between ${contract.companyName} and ${contract.userName}.\n\nPurpose: ${contract.purpose}\nDepartment: ${contract.department}\nDuration: ${contract.duration}\n${contract.salary ? `Compensation: ${contract.salary}\n` : ""}Location: ${[contract.location.city, contract.location.state, contract.location.country].filter(Boolean).join(", ")}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n1. SCOPE OF WORK\nThe party agrees to perform all duties...\n\n2. COMPENSATION\n${contract.salary || "As agreed between parties"}\n\n3. CONFIDENTIALITY\nAll information shared between parties...\n\n4. INTELLECTUAL PROPERTY\nAll work product shall belong to ${contract.companyName}...\n\n5. TERMINATION\nEither party may terminate with 30 days notice...\n\n[AI Risk Score: ${contract.riskScore}/100]\n[Generated via ContractAI]\n`}
+                {contract.content || "No content generated yet."}
               </pre>
             </div>
           </motion.div>
@@ -286,24 +384,6 @@ export default function AdminContractReviewPage() {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Digital signature panel */}
-          <div className="glass-card rounded-2xl p-5">
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <FileSignature className="h-4 w-4 text-primary" /> Digital Signature
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Apply your company signature to approve this contract officially.
-            </p>
-            <div className="rounded-xl border-2 border-dashed border-border/50 p-4 text-center">
-              <Shield className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">Click to apply company seal</p>
-            </div>
-            <Button variant="outline" size="sm" className="w-full mt-3 gap-1.5" id="admin-apply-seal">
-              <FileSignature className="h-3.5 w-3.5" />
-              Apply Company Seal
-            </Button>
           </div>
         </motion.div>
       </div>

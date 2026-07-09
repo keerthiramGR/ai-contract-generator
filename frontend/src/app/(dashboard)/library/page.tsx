@@ -1,23 +1,78 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
 import { Search, Filter, FileText, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { TEMPLATES, COMPANIES } from "@/lib/mock-data";
-import { ContractPurpose } from "@/lib/types";
 import { PURPOSE_LABELS } from "@/lib/mock-data";
+import { ContractPurpose } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const COMPANY_COLORS = ["bg-blue-500", "bg-red-500", "bg-orange-500", "bg-blue-600", "bg-gray-800", "bg-red-600", "bg-gray-700", "bg-emerald-600"];
 
 export default function LibraryPage() {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCompany, setSelectedCompany] = useState("all");
   const [selectedPurpose, setSelectedPurpose] = useState<ContractPurpose | "all">("all");
 
-  const filtered = TEMPLATES.filter((t) => {
+  useEffect(() => {
+    async function fetchData() {
+      // 1. Fetch templates
+      const { data: templatesData, error: templatesError } = await supabase
+        .from("contract_templates")
+        .select("*, companies(company_name, company_logo, status, description)")
+        .eq("is_active", true);
+
+      if (!templatesError && templatesData) {
+        setTemplates(templatesData.map((t: any) => ({
+          id: t.id,
+          companyId: t.company_id,
+          companyName: t.companies?.company_name || "Unknown Company",
+          title: t.template_name,
+          purpose: (t.category_id ? "nda" : "custom") as ContractPurpose, // category map or fallback nda/custom
+          department: "Legal",
+          description: t.companies?.description || "Official contract template.",
+          isActive: t.is_active,
+          logo: t.companies?.company_logo || "?",
+          verified: t.companies?.status === "approved",
+          usageCount: 12,
+          placeholders: ["Party Name", "Date", "Duration"],
+        })));
+      }
+
+      // 2. Fetch companies
+      const { data: companiesData, error: companiesError } = await supabase
+        .from("companies")
+        .select("*");
+
+      if (!companiesError && companiesData) {
+        setCompanies(companiesData.map((c: any) => ({
+          id: c.id,
+          name: c.company_name,
+          logo: c.company_logo || "?",
+          verified: c.status === "approved",
+        })));
+      }
+
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const filtered = templates.filter((t) => {
     const matchSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
       t.companyName.toLowerCase().includes(search.toLowerCase());
     const matchCompany = selectedCompany === "all" || t.companyId === selectedCompany;
@@ -52,7 +107,7 @@ export default function LibraryPage() {
           id="library-filter-company"
         >
           <option value="all">All Companies</option>
-          {COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select
           value={selectedPurpose}
@@ -68,8 +123,8 @@ export default function LibraryPage() {
       {/* Templates grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((template, i) => {
-          const company = COMPANIES.find((c) => c.id === template.companyId);
-          const colorClass = COMPANY_COLORS[COMPANIES.findIndex((c) => c.id === template.companyId) % COMPANY_COLORS.length];
+          const companyIndex = companies.findIndex((c) => c.id === template.companyId);
+          const colorClass = companyIndex !== -1 ? COMPANY_COLORS[companyIndex % COMPANY_COLORS.length] : "bg-gray-800";
           return (
             <motion.div
               key={template.id}
@@ -81,12 +136,12 @@ export default function LibraryPage() {
               {/* Header */}
               <div className="flex items-start gap-3 mb-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colorClass} text-white font-bold shadow-md`}>
-                  {company?.logo || "?"}
+                  {template.logo || "?"}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
                     <p className="text-xs font-semibold text-muted-foreground truncate">{template.companyName}</p>
-                    {company?.verified && <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />}
+                    {template.verified && <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />}
                   </div>
                   <p className="text-sm font-semibold leading-tight mt-0.5">{template.title}</p>
                 </div>
@@ -97,7 +152,7 @@ export default function LibraryPage() {
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="secondary" className="text-[10px] px-2">{template.department}</Badge>
-                  <Badge variant="outline" className="text-[10px] px-2">{PURPOSE_LABELS[template.purpose]?.split(" ")[0]}</Badge>
+                  <Badge variant="outline" className="text-[10px] px-2">{PURPOSE_LABELS[template.purpose]?.split(" ")[0] || "Custom"}</Badge>
                 </div>
                 <Link href="/contracts/create">
                   <Button size="sm" variant="outline" className="text-xs h-7" id={`library-use-${template.id}`}>

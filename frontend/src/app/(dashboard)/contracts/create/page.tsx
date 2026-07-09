@@ -17,9 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { COMPANIES, AI_FOLLOW_UP_QUESTIONS, PURPOSE_LABELS, TEMPLATES } from "@/lib/mock-data";
+import { AI_FOLLOW_UP_QUESTIONS, PURPOSE_LABELS } from "@/lib/mock-data";
 import { ContractPurpose, Department, ContractDuration, ChatMessage } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabase";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -62,8 +64,7 @@ const DURATIONS: { value: ContractDuration; label: string }[] = [
   { value: "custom", label: "Custom Duration" },
 ];
 
-function generateContract(form: FormData, answers: string[]): ReactNode {
-  const company = COMPANIES.find((c) => c.id === form.companyId);
+function generateContract(form: FormData, answers: string[], companyName: string = "Company"): ReactNode {
   const purposeLabel = form.purpose ? PURPOSE_LABELS[form.purpose] : "Agreement";
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
@@ -141,9 +142,9 @@ function generateContract(form: FormData, answers: string[]): ReactNode {
     );
   }
 
-  const contractText = `${company?.name?.toUpperCase() || "COMPANY"} ${purposeLabel.toUpperCase()}
+  const contractText = `${companyName.toUpperCase()} ${purposeLabel.toUpperCase()}
 
-This ${purposeLabel} ("Agreement") is entered into as of ${today} between ${company?.name || "[Company Name]"} ("Company") and [EMPLOYEE/PARTY NAME] ("Party").
+This ${purposeLabel} ("Agreement") is entered into as of ${today} between ${companyName} ("Company") and [EMPLOYEE/PARTY NAME] ("Party").
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -168,7 +169,7 @@ Payment terms are subject to the standard Company payroll schedule.
 All applicable taxes and deductions shall be handled in accordance with local law.
 
 4. INTELLECTUAL PROPERTY
-All work product, inventions, developments, and intellectual property created by the Party during the term of this Agreement shall be the sole and exclusive property of ${company?.name || "the Company"}.
+All work product, inventions, developments, and intellectual property created by the Party during the term of this Agreement shall be the sole and exclusive property of ${companyName}.
 
 The Party agrees to execute any documents necessary to perfect the Company's ownership rights.
 
@@ -224,8 +225,8 @@ Date: _____________________
 [COMPANY SEAL]                    [Official Company Stamp]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-This document was AI-generated via ContractAI and is pending official company review and approval.
-Document ID: CAI-${Math.random().toString(36).substring(2, 10).toUpperCase()}
+This document was AI-generated via Accord and is pending official company review and approval.
+Document ID: ACC-${Math.random().toString(36).substring(2, 10).toUpperCase()}
 Generated: ${new Date().toISOString()}`;
   return <pre className="contract-document text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">{contractText}</pre>;
 }
@@ -233,8 +234,11 @@ Generated: ${new Date().toISOString()}`;
 const AI_INTRO_DELAY = 800;
 
 export default function CreateContractPage() {
+  const { user } = useUser();
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [form, setForm] = useState<FormData>({
     companyId: "", purpose: "", department: "", country: "",
     state: "", city: "", duration: "", salary: "", projectType: "", additionalNotes: "",
@@ -247,9 +251,29 @@ export default function CreateContractPage() {
   const [generatedContract, setGeneratedContract] = useState<ReactNode>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [rawContractText, setRawContractText] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [riskScore, setRiskScore] = useState(25);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const questions = form.purpose ? (AI_FOLLOW_UP_QUESTIONS[form.purpose] || []) : [];
+
+  useEffect(() => {
+    async function loadData() {
+      // 1. Fetch companies
+      const { data: cos } = await supabase.from("companies").select("*");
+      if (cos) {
+        setCompanies(cos.map(c => ({ id: c.id, name: c.company_name, verified: c.status === 'approved' })));
+      }
+      
+      // 2. Fetch templates
+      const { data: temps } = await supabase.from("contract_templates").select("*");
+      if (temps) {
+        setTemplates(temps.map(t => ({ id: t.id, companyId: t.company_id, purpose: t.purpose || 'custom' })));
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -258,8 +282,8 @@ export default function CreateContractPage() {
   // Initialize chat when entering step 2
   useEffect(() => {
     if (step === 2 && messages.length === 0) {
-      const company = COMPANIES.find((c) => c.id === form.companyId);
-      const template = TEMPLATES.find((t) => t.companyId === form.companyId && t.purpose === form.purpose);
+      const company = companies.find((c) => c.id === form.companyId);
+      const template = templates.find((t) => t.companyId === form.companyId && t.purpose === form.purpose);
 
       setTimeout(() => {
         setMessages([
@@ -290,7 +314,7 @@ export default function CreateContractPage() {
         }, 1200);
       }, AI_INTRO_DELAY + 500);
     }
-  }, [step]);
+  }, [step, companies, templates]);
 
   const handleSendMessage = () => {
     if (!input.trim()) return;
@@ -340,22 +364,91 @@ export default function CreateContractPage() {
     }
   };
 
-  const handleGenerateContract = () => {
+  const handleGenerateContract = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      const contract = generateContract(form, answers);
-      setGeneratedContract(contract);
-      setIsGenerating(false);
+    const company = companies.find((c) => c.id === form.companyId);
+    
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          companyName: company?.name || "Company",
+          answers,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate contract via AI API");
+      }
+
+      const data = await response.json();
+      setRawContractText(data.generated_content);
+      setAiSummary(data.ai_summary);
+      setRiskScore(data.risk_score);
+
+      // Render the contract
+      if (form.purpose === 'rental') {
+        const contractNode = generateContract(form, answers, company?.name || "Company");
+        setGeneratedContract(contractNode);
+      } else {
+        setGeneratedContract(
+          <pre className="contract-document text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed p-4 bg-muted/20 rounded-lg max-h-[60vh] overflow-y-auto border border-border/50">
+            {data.generated_content}
+          </pre>
+        );
+      }
+
       setStep(3);
-    }, 2500);
+    } catch (err) {
+      console.error(err);
+      // Fallback in case of error (e.g. no Gemini key configured yet)
+      const fallbackText = `CONTRACT AGREEMENT - FALLBACK MODE\n\nFailed to reach Gemini API. Please configure GEMINI_API_KEY in .env.local.\n\nDate: ${new Date().toLocaleDateString()}\nCompany: ${company?.name || "Company"}\nPurpose: ${PURPOSE_LABELS[form.purpose as ContractPurpose] || "Contract"}\nDepartment: ${form.department || "Legal"}`;
+      setRawContractText(fallbackText);
+      setAiSummary("Local fallback generated due to API error. Please check environment variables.");
+      setRiskScore(15);
+      setGeneratedContract(
+        <pre className="contract-document text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed p-4 bg-muted/20 rounded-lg max-h-[60vh] overflow-y-auto border border-border/50">
+          {fallbackText}
+        </pre>
+      );
+      setStep(3);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleSubmitForReview = () => {
+  const handleSubmitForReview = async () => {
+    if (!user) return;
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
+
+    const company = companies.find((c) => c.id === form.companyId);
+    const contractTitle = form.purpose === 'rental' 
+      ? `Rental Agreement - ${form.tenantName || 'Tenant'}`
+      : `${PURPOSE_LABELS[form.purpose as ContractPurpose] || 'Contract'} - ${form.department || 'Legal'}`;
+
+    const newContract = {
+      user_id: user.id,
+      company_id: form.companyId || null,
+      title: contractTitle,
+      purpose: form.purpose || 'custom',
+      generated_content: rawContractText || "No content generated.",
+      ai_summary: aiSummary || `This is an AI-generated ${form.purpose} agreement.`,
+      risk_score: riskScore || 20,
+      status: 'Pending Review',
+    };
+
+    const { error } = await supabase
+      .from("contracts")
+      .insert(newContract);
+
+    setIsGenerating(false);
+    if (!error) {
       setStep(4);
-    }, 1500);
+    } else {
+      console.error("Error creating contract in Supabase:", error);
+    }
   };
 
   const isStep1Valid = form.purpose === 'rental' 
@@ -428,7 +521,7 @@ export default function CreateContractPage() {
                   className="h-10"
                 >
                   <option value="">▼ Select Company</option>
-                  {COMPANIES.map((c) => (
+                  {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name} {c.verified ? "✓" : ""}</option>
                   ))}
                 </Select>
@@ -636,7 +729,7 @@ export default function CreateContractPage() {
                 <Bot className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">ContractAI Assistant</p>
+                <p className="text-sm font-semibold">Accord Assistant</p>
                 <p className="text-xs text-muted-foreground">Gathering contract details</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
@@ -826,7 +919,7 @@ export default function CreateContractPage() {
             <h2 className="text-2xl font-bold mb-2">Contract Submitted! 🎉</h2>
             <p className="text-muted-foreground mb-2">
               Your contract has been submitted to{" "}
-              <strong>{COMPANIES.find((c) => c.id === form.companyId)?.name}</strong> for review.
+              <strong>{companies.find((c) => c.id === form.companyId)?.name}</strong> for review.
             </p>
             <p className="text-sm text-muted-foreground mb-8">
               You&apos;ll receive a notification once the company admin reviews your contract.

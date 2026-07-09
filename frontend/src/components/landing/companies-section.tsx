@@ -43,11 +43,11 @@ export function CompaniesSection() {
           {COMPANIES.map((company, i) => (
             <motion.div
               key={company.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 25 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.06 }}
-              className="group glass-card rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
+              transition={{ type: "spring", stiffness: 90, damping: 15, delay: i * 0.05 }}
+              className="group glass-card rounded-2xl p-5 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 {/* Logo placeholder */}
@@ -58,16 +58,16 @@ export function CompaniesSection() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <p className="font-semibold text-sm truncate">{company.name}</p>
+                    <p className="font-semibold text-sm truncate font-heading">{company.name}</p>
                     {company.verified && (
                       <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{company.industry}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate font-sans">{company.industry}</p>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground font-sans">
                 <span className="flex items-center gap-1">
                   <span className="font-semibold text-foreground">{company.templateCount}</span> templates
                 </span>
@@ -81,8 +81,8 @@ export function CompaniesSection() {
                   initial={{ width: 0 }}
                   whileInView={{ width: `${Math.min((company.contractsProcessed / 1300) * 100, 100)}%` }}
                   viewport={{ once: true }}
-                  transition={{ duration: 1, delay: 0.3 + i * 0.05, ease: "easeOut" }}
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-purple-500"
+                  transition={{ duration: 1.2, delay: 0.4 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
                 />
               </div>
             </motion.div>

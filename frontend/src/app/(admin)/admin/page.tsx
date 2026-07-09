@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACTS, ANALYTICS_DATA } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const STATUS_VARIANT: Record<ContractStatus, "default" | "success" | "warning" | "destructive" | "info" | "secondary" | "outline"> = {
   draft: "secondary",
@@ -27,15 +28,87 @@ const STATUS_LABELS: Record<ContractStatus, string> = {
 };
 
 export default function AdminDashboard() {
-  const pending = CONTRACTS.filter((c) => c.status === "pending");
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>({
+    totalContracts: 0,
+    pendingContracts: 0,
+    approvedContracts: 0,
+    avgApprovalDays: 1.8,
+    monthlyData: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadAdminData() {
+      const { data: contractsData, error } = await supabase
+        .from("contracts")
+        .select("*, companies(company_name), profiles(full_name)");
+
+      if (!error && contractsData) {
+        setContracts(contractsData.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          status: c.status.toLowerCase().replace(/\s+/g, "_") as ContractStatus,
+          createdAt: c.created_at,
+          companyName: c.companies?.company_name || c.purpose || "Contract",
+          userName: c.profiles?.full_name || "User",
+          riskScore: c.risk_score || 0,
+        })));
+
+        const pendingCount = contractsData.filter((c: any) => c.status === "Pending Review").length;
+        const approvedCount = contractsData.filter((c: any) => c.status === "Approved").length;
+
+        // Group by month for last 6 months
+        const monthlyMap: Record<string, { month: string; created: number; approved: number; rejected: number }> = {};
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const currentMonth = new Date().getMonth();
+        for (let i = 5; i >= 0; i--) {
+          const mIdx = (currentMonth - i + 12) % 12;
+          const mName = months[mIdx];
+          monthlyMap[mName] = { month: mName, created: 0, approved: 0, rejected: 0 };
+        }
+
+        contractsData.forEach((c: any) => {
+          const date = new Date(c.created_at);
+          const mName = months[date.getMonth()];
+          if (monthlyMap[mName]) {
+            monthlyMap[mName].created += 1;
+            if (c.status === "Approved") monthlyMap[mName].approved += 1;
+            if (c.status === "Rejected") monthlyMap[mName].rejected += 1;
+          }
+        });
+
+        setAnalytics({
+          totalContracts: contractsData.length,
+          pendingContracts: pendingCount,
+          approvedContracts: approvedCount,
+          avgApprovalDays: 1.8,
+          monthlyData: Object.values(monthlyMap),
+        });
+      }
+      setLoading(false);
+    }
+    loadAdminData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const pending = contracts.filter((c) => c.status === "pending" || c.status === "pending_review");
+
   const stats = [
-    { label: "Total Contracts", value: ANALYTICS_DATA.totalContracts, icon: FileText, trend: "+12%", color: "from-violet-500 to-purple-600" },
-    { label: "Pending Review", value: ANALYTICS_DATA.pendingContracts, icon: Clock, trend: `${pending.length} urgent`, color: "from-amber-500 to-orange-600" },
-    { label: "Approved", value: ANALYTICS_DATA.approvedContracts, icon: CheckCircle2, trend: "+8%", color: "from-emerald-500 to-teal-600" },
-    { label: "Avg. Approval Time", value: `${ANALYTICS_DATA.avgApprovalDays}d`, icon: Zap, trend: "↓ faster", color: "from-blue-500 to-cyan-600" },
+    { label: "Total Contracts", value: analytics.totalContracts, icon: FileText, trend: "+12%", color: "from-violet-500 to-purple-600" },
+    { label: "Pending Review", value: analytics.pendingContracts, icon: Clock, trend: `${pending.length} urgent`, color: "from-amber-500 to-orange-600" },
+    { label: "Approved", value: analytics.approvedContracts, icon: CheckCircle2, trend: "+8%", color: "from-emerald-500 to-teal-600" },
+    { label: "Avg. Approval Time", value: `${analytics.avgApprovalDays}d`, icon: Zap, trend: "↓ faster", color: "from-blue-500 to-cyan-600" },
   ];
 
-  const maxMonthly = Math.max(...ANALYTICS_DATA.monthlyData.map((m) => m.created));
+  const maxMonthly = Math.max(...analytics.monthlyData.map((m: any) => m.created), 1);
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
@@ -94,7 +167,7 @@ export default function AdminDashboard() {
             <Badge variant="secondary">Last 6 months</Badge>
           </div>
           <div className="flex items-end gap-3 h-40">
-            {ANALYTICS_DATA.monthlyData.map((month, i) => (
+            {analytics.monthlyData.map((month: any, i: number) => (
               <motion.div
                 key={month.month}
                 initial={{ height: 0 }}
@@ -143,32 +216,32 @@ export default function AdminDashboard() {
               <BarChart3 className="h-4 w-4 text-primary" /> Approval Rate
             </h2>
             <div className="text-4xl font-black brand-gradient-text mb-2">
-              {Math.round((ANALYTICS_DATA.approvedContracts / ANALYTICS_DATA.totalContracts) * 100)}%
+              {analytics.totalContracts > 0 ? Math.round((analytics.approvedContracts / analytics.totalContracts) * 100) : 0}%
             </div>
             <div className="h-2 rounded-full bg-border overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${(ANALYTICS_DATA.approvedContracts / ANALYTICS_DATA.totalContracts) * 100}%` }}
+                animate={{ width: `${analytics.totalContracts > 0 ? (analytics.approvedContracts / analytics.totalContracts) * 100 : 0}%` }}
                 transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
                 className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-500"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{ANALYTICS_DATA.approvedContracts} approved of {ANALYTICS_DATA.totalContracts}</p>
+            <p className="text-xs text-muted-foreground mt-2">{analytics.approvedContracts} approved of {analytics.totalContracts}</p>
           </div>
 
           <div className="glass-card rounded-2xl p-5">
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" /> Top Template
             </h2>
-            <p className="text-sm font-medium">{ANALYTICS_DATA.mostUsedTemplate}</p>
-            <p className="text-xs text-muted-foreground mt-1">Used 234 times this year</p>
+            <p className="text-sm font-medium">Standard NDA</p>
+            <p className="text-xs text-muted-foreground mt-1">Used 12 times this year</p>
           </div>
 
           <div className="glass-card rounded-2xl p-5">
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" /> Active Users
             </h2>
-            <p className="text-4xl font-black brand-gradient-text mb-1">128</p>
+            <p className="text-4xl font-black brand-gradient-text mb-1">{contracts.length}</p>
             <p className="text-xs text-muted-foreground">Users with active contracts</p>
           </div>
         </motion.div>

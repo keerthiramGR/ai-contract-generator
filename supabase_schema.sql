@@ -52,7 +52,7 @@ CREATE TABLE companies (
 
 -- Profiles Table (Extends auth.users)
 CREATE TABLE profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY, -- Clerk user ID (string)
     full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone_number TEXT,
@@ -84,7 +84,7 @@ $$ LANGUAGE sql SECURITY DEFINER;
 CREATE TABLE company_admins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     designation TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(company_id, user_id)
@@ -114,7 +114,7 @@ CREATE TABLE contract_templates (
     template_content TEXT NOT NULL,
     version INTEGER DEFAULT 1,
     is_active BOOLEAN DEFAULT true,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -122,7 +122,7 @@ CREATE TABLE contract_templates (
 -- AI Generated Contracts
 CREATE TABLE contracts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
     template_id UUID REFERENCES contract_templates(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
@@ -131,6 +131,7 @@ CREATE TABLE contracts (
     ai_summary TEXT,
     risk_score NUMERIC(5,2),
     status contract_status DEFAULT 'Draft',
+    review_comments TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -140,7 +141,7 @@ CREATE TABLE approval_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    assigned_admin UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    assigned_admin TEXT REFERENCES profiles(id) ON DELETE SET NULL,
     status approval_status DEFAULT 'pending',
     review_comments TEXT,
     approved_at TIMESTAMPTZ,
@@ -152,7 +153,7 @@ CREATE TABLE approval_requests (
 CREATE TABLE signatures (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
-    signed_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    signed_by TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     signature_image TEXT, -- URL to Supabase Storage
     signed_at TIMESTAMPTZ DEFAULT NOW(),
     signature_type TEXT -- 'draw', 'type', 'upload'
@@ -161,7 +162,7 @@ CREATE TABLE signatures (
 -- Notifications
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
     notification_type TEXT,
@@ -173,7 +174,7 @@ CREATE TABLE notifications (
 CREATE TABLE ai_chat_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     sender TEXT NOT NULL, -- 'user' or 'ai'
     message TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -183,7 +184,7 @@ CREATE TABLE ai_chat_history (
 CREATE TABLE uploaded_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     file_name TEXT NOT NULL,
     file_type TEXT,
     file_url TEXT NOT NULL, -- URL to Supabase Storage
@@ -196,7 +197,7 @@ CREATE TABLE contract_events (
     contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL, -- 'Created', 'Submitted', 'Approved', 'Rejected', 'Signed', 'Expired', 'Renewed'
     event_date TIMESTAMPTZ DEFAULT NOW(),
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL
+    created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL
 );
 
 -- Contract Versions (Comparison)
@@ -205,14 +206,14 @@ CREATE TABLE contract_versions (
     contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     version INTEGER NOT NULL,
     content TEXT NOT NULL,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Activity Logs
 CREATE TABLE activity_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    user_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     module TEXT,
     ip_address TEXT,

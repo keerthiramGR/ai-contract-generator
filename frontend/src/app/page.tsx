@@ -4,8 +4,10 @@ import { FeaturesSection } from "@/components/landing/features-section";
 import { CompaniesSection } from "@/components/landing/companies-section";
 import { HowItWorksSection } from "@/components/landing/about-section";
 import { ContactSection } from "@/components/landing/contact-section";
+import { ScrollStory } from "@/components/landing/scroll-story";
+import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
-import { FileText, Share2, GitBranch, Globe } from "lucide-react";
+import { Share2, GitBranch, Globe } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -13,8 +15,9 @@ export default function LandingPage() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
-        <FeaturesSection />
         <CompaniesSection />
+        <ScrollStory />
+        <FeaturesSection />
         <HowItWorksSection />
         <ContactSection />
       </main>
@@ -26,11 +29,9 @@ export default function LandingPage() {
             {/* Brand */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <FileText className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold">
-                  Contract<span className="brand-gradient-text">AI</span>
+                <Logo className="h-6 w-6" />
+                <span className="text-lg font-bold font-heading">
+                  Accord<span className="brand-gradient-text">.</span>
                 </span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
@@ -81,7 +82,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border/50">
             <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} ContractAI. All rights reserved.
+              © {new Date().getFullYear()} Accord. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
               <Link href="/sign-in" className="text-xs text-muted-foreground hover:text-foreground transition-colors">

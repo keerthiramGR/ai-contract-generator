@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FileText,
   Menu,
   X,
   Moon,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -50,11 +50,9 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
-              <FileText className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">
-              Contract<span className="brand-gradient-text">AI</span>
+            <Logo className="h-7 w-7 text-primary transition-transform duration-300 group-hover:rotate-6" />
+            <span className="text-lg font-bold tracking-tight font-heading">
+              Accord
             </span>
           </Link>
 

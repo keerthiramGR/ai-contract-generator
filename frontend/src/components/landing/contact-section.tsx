@@ -35,13 +35,13 @@ export function ContactSection() {
             </h2>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
               Whether you&apos;re looking to onboard your company, need enterprise support,
-              or just have questions about how ContractAI works — reach out and we&apos;ll
+              or just have questions about how Accord works — reach out and we&apos;ll
               respond within 24 hours.
             </p>
 
             <div className="space-y-4">
               {[
-                { icon: Mail, label: "Email", value: "hello@contractai.io" },
+                { icon: Mail, label: "Email", value: "hello@accord.io" },
                 { icon: MessageSquare, label: "Live Chat", value: "Available Mon–Fri, 9am–6pm EST" },
               ].map((item) => {
                 const Icon = item.icon;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -16,9 +17,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACTS, NOTIFICATIONS } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
 import { useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabase";
+import { syncUserProfile } from "@/lib/sync-user";
+
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "info" | "secondary" | "outline" }> = {
   draft: { label: "Draft", variant: "secondary" },
@@ -61,14 +64,74 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const userContracts = CONTRACTS.slice(0, 4);
-  const unreadNotifications = NOTIFICATIONS.filter((n) => !n.isRead);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function initDashboard() {
+      if (!user) return;
+      
+      // 1. Sync User Profile
+      await syncUserProfile(user);
+
+      // 2. Fetch user's contracts from Supabase
+      const { data: contractsData, error: contractsError } = await supabase
+        .from("contracts")
+        .select("*, companies(company_name)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!contractsError && contractsData) {
+        const mappedContracts = contractsData.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          status: c.status.toLowerCase().replace(/\s+/g, "_") as ContractStatus,
+          createdAt: c.created_at,
+          companyName: c.companies?.company_name || c.purpose || "Contract",
+        }));
+        setContracts(mappedContracts);
+      }
+
+      // 3. Fetch notifications from Supabase
+      const { data: notificationsData, error: notificationsError } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!notificationsError && notificationsData) {
+        setNotifications(notificationsData.map((n: any) => ({
+          id: n.id,
+          title: n.title,
+          message: n.description,
+          isRead: n.is_read,
+          createdAt: n.created_at,
+        })));
+      }
+
+      setLoading(false);
+    }
+
+    initDashboard();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const userContracts = contracts.slice(0, 4);
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
 
   const stats = [
-    { label: "Total Contracts", value: CONTRACTS.length, icon: FileText, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Pending Review", value: CONTRACTS.filter((c) => c.status === "pending").length, icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
-    { label: "Approved", value: CONTRACTS.filter((c) => c.status === "approved").length, icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
-    { label: "Rejected", value: CONTRACTS.filter((c) => c.status === "rejected").length, icon: XCircle, color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
+    { label: "Total Contracts", value: contracts.length, icon: FileText, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Pending Review", value: contracts.filter((c) => c.status === "pending" || c.status === "pending_review").length, icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
+    { label: "Approved", value: contracts.filter((c) => c.status === "approved").length, icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
+    { label: "Rejected", value: contracts.filter((c) => c.status === "rejected").length, icon: XCircle, color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
   ];
 
   return (
@@ -160,39 +223,45 @@ export default function DashboardPage() {
 
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="divide-y divide-border/50">
-              {userContracts.map((contract, i) => {
-                const status = STATUS_CONFIG[contract.status];
-                return (
-                  <motion.div
-                    key={contract.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 + i * 0.06 }}
-                  >
-                    <Link
-                      href={`/contracts/${contract.id}`}
-                      className="flex items-center gap-4 px-5 py-4 hover:bg-accent/50 transition-colors group"
-                      id={`contract-row-${contract.id}`}
+              {userContracts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  No contracts generated yet.
+                </div>
+              ) : (
+                userContracts.map((contract, i) => {
+                  const status = STATUS_CONFIG[contract.status as ContractStatus] || STATUS_CONFIG.draft;
+                  return (
+                    <motion.div
+                      key={contract.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.25 + i * 0.06 }}
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                          {contract.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {contract.companyName} · {new Date(contract.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
+                      <Link
+                        href={`/contracts/${contract.id}`}
+                        className="flex items-center gap-4 px-5 py-4 hover:bg-accent/50 transition-colors group"
+                        id={`contract-row-${contract.id}`}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                            {contract.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {contract.companyName} · {new Date(contract.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })
+              )}
             </div>
           </div>
         </motion.div>
@@ -243,24 +312,30 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="glass-card rounded-2xl divide-y divide-border/50 overflow-hidden">
-              {NOTIFICATIONS.slice(0, 3).map((notif) => (
-                <div
-                  key={notif.id}
-                  className={`px-4 py-3 ${!notif.isRead ? "bg-primary/3" : ""}`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    {!notif.isRead && (
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                    )}
-                    <div className={!notif.isRead ? "" : "pl-3.5"}>
-                      <p className="text-xs font-semibold">{notif.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
-                        {notif.message}
-                      </p>
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-xs">
+                  No notifications.
+                </div>
+              ) : (
+                notifications.slice(0, 3).map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`px-4 py-3 ${!notif.isRead ? "bg-primary/3" : ""}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {!notif.isRead && (
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      )}
+                      <div className={!notif.isRead ? "" : "pl-3.5"}>
+                        <p className="text-xs font-semibold">{notif.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                          {notif.message}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </motion.div>
         </div>

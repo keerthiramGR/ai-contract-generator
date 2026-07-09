@@ -6,13 +6,17 @@ import Link from "next/link";
 import {
   FileText, ChevronLeft, Download, Clock, CheckCircle2, XCircle,
   AlertCircle, MessageSquare, Building2, Calendar, MapPin, DollarSign,
-  Shield, Sparkles, FileSignature,
+  Shield, Sparkles, FileSignature, X, PenTool
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CONTRACTS } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@clerk/nextjs";
+import { jsPDF } from "jspdf";
+import { SignaturePad } from "@/components/ui/signature-pad";
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "info" | "secondary" | "outline"; icon: React.ElementType; color: string }> = {
   draft: { label: "Draft", variant: "secondary", icon: FileText, color: "text-slate-500" },
@@ -30,7 +34,188 @@ const TIMELINE: { status: ContractStatus; label: string; description: string }[]
 
 export default function ContractDetailPage() {
   const { id } = useParams();
-  const contract = CONTRACTS.find((c) => c.id === id);
+  const { user } = useUser();
+  const [contract, setContract] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [signature, setSignature] = useState<any>(null);
+  const [showSignModal, setShowSignModal] = useState(false);
+
+  useEffect(() => {
+    async function fetchContractAndSignature() {
+      if (!id) return;
+      
+      // 1. Fetch Contract Details
+      const { data, error } = await supabase
+        .from("contracts")
+        .select("*, companies(company_name)")
+        .eq("id", id)
+        .single();
+
+      if (!error && data) {
+        setContract({
+          id: data.id,
+          title: data.title,
+          status: data.status.toLowerCase().replace(/\s+/g, "_") as ContractStatus,
+          createdAt: data.created_at,
+          companyName: data.companies?.company_name || data.purpose || "Contract",
+          purpose: data.purpose,
+          department: data.purpose,
+          duration: "1year",
+          salary: data.salary || "",
+          location: { country: "India", state: "Tamil Nadu", city: "Chennai" },
+          content: data.generated_content,
+          riskScore: data.risk_score || 0,
+          aiSummary: data.ai_summary || "No summary available.",
+          adminComment: data.review_comments || "",
+        });
+      }
+
+      // 2. Fetch Signatures for this contract
+      const { data: sigs } = await supabase
+        .from("signatures")
+        .select("*")
+        .eq("contract_id", id);
+      
+      if (sigs && sigs.length > 0) {
+        setSignature(sigs[0]);
+      }
+
+      setLoading(false);
+    }
+    fetchContractAndSignature();
+  }, [id]);
+
+  const dataURLtoBlob = (dataurl: string): Blob => {
+    const arr = dataurl.split(",");
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
+  const handleSaveSignature = async (dataUrl: string) => {
+    if (!id || !user) return;
+    
+    try {
+      const blob = dataURLtoBlob(dataUrl);
+      const filePath = `${user.id}/${id}_${Date.now()}.png`;
+
+      // 1. Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("digital-signatures")
+        .upload(filePath, blob, { contentType: "image/png" });
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get Public URL
+      const { data: urlData } = supabase.storage
+        .from("digital-signatures")
+        .getPublicUrl(filePath);
+
+      const signatureUrl = urlData?.publicUrl || "";
+
+      // 3. Insert record in Database
+      const { data: sigData, error: sigError } = await supabase
+        .from("signatures")
+        .insert({
+          contract_id: id,
+          signed_by: user.id,
+          signature_image: signatureUrl,
+          signature_type: "draw",
+        })
+        .select()
+        .single();
+
+      if (sigError) throw sigError;
+
+      setSignature(sigData);
+      setShowSignModal(false);
+    } catch (err) {
+      console.error("Error saving signature:", err);
+    }
+  };
+
+  const exportToPDF = () => {
+    if (!contract) return;
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const margin = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const contentWidth = pageWidth - 2 * margin;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(contract.title.toUpperCase(), margin, 25);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Company: ${contract.companyName}`, margin, 32);
+    doc.text(`Date: ${new Date(contract.createdAt).toLocaleDateString()}`, margin, 37);
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, 42, pageWidth - margin, 42);
+
+    // Body
+    doc.setFont("courier", "normal");
+    doc.setFontSize(9);
+    
+    const lines = doc.splitTextToSize(contract.content || "No content generated.", contentWidth);
+    
+    let y = 50;
+    const lineHeight = 5;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (y > pageHeight - 30) {
+        doc.addPage();
+        y = 25;
+      }
+      doc.text(lines[i], margin, y);
+      y += lineHeight;
+    }
+
+    // Signatures
+    if (signature) {
+      if (y > pageHeight - 60) {
+        doc.addPage();
+        y = 30;
+      }
+      y += 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("SIGNATURES & VERIFICATION", margin, y);
+      
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.text("Digitally Signed by Party:", margin, y);
+      doc.text(`Name: ${user?.fullName || "User"}`, margin, y + 5);
+      doc.text(`Email: ${user?.primaryEmailAddress?.emailAddress}`, margin, y + 10);
+      
+      try {
+        doc.addImage(signature.signature_image, "PNG", margin + 70, y - 5, 40, 20);
+      } catch (e) {
+        console.error("Could not render signature image in PDF:", e);
+      }
+    }
+
+    doc.save(`${contract.title.toLowerCase().replace(/\s+/g, "_")}.pdf`);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!contract) {
     return (
@@ -43,7 +228,7 @@ export default function ContractDetailPage() {
     );
   }
 
-  const status = STATUS_CONFIG[contract.status];
+  const status = STATUS_CONFIG[contract.status as ContractStatus] || STATUS_CONFIG.draft;
   const StatusIcon = status.icon;
 
   const statusOrder: ContractStatus[] = ["draft", "pending", "approved"];
@@ -54,7 +239,7 @@ export default function ContractDetailPage() {
   );
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-5xl mx-auto relative">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -78,10 +263,19 @@ export default function ContractDetailPage() {
             {status.label}
           </Badge>
           {contract.status === "approved" && (
-            <Button size="sm" className="gap-1.5" id="contract-download-approved">
-              <Download className="h-4 w-4" />
-              Download
-            </Button>
+            <>
+              {signature ? (
+                <Button size="sm" className="gap-1.5" onClick={exportToPDF} id="contract-download-pdf">
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </Button>
+              ) : (
+                <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowSignModal(true)} id="contract-sign-btn">
+                  <PenTool className="h-4 w-4" />
+                  Sign Contract
+                </Button>
+              )}
+            </>
           )}
         </div>
       </motion.div>
@@ -122,16 +316,10 @@ export default function ContractDetailPage() {
                           )}
                         </p>
                         <p className="text-xs text-muted-foreground">{tl.description}</p>
-                        {tl.status === "approved" && contract.status === "approved" && contract.approvedAt && (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            ✓ Approved on {new Date(contract.approvedAt).toLocaleDateString()}
+                        {tl.status === "approved" && contract.status === "approved" && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">
+                            {signature ? "✓ Signed & Finalized" : "⚡ Awaiting Party Signature"}
                           </p>
-                        )}
-                        {tl.status === "approved" && contract.status === "rejected" && (
-                          <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">✗ Rejected</p>
-                        )}
-                        {tl.status === "approved" && contract.status === "changes_requested" && (
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">⚡ Changes Requested</p>
                         )}
                       </div>
                     </div>
@@ -175,6 +363,24 @@ export default function ContractDetailPage() {
             </div>
           </motion.div>
 
+          {/* Contract Content Document */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="glass-card rounded-2xl p-6"
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold">Contract Document</h2>
+              </div>
+            </div>
+            <div className="p-4 bg-muted/20 border border-border/50 rounded-lg max-h-[60vh] overflow-y-auto font-mono text-xs whitespace-pre-wrap leading-relaxed text-foreground">
+              {contract.content || "No content generated yet."}
+            </div>
+          </motion.div>
+
           {/* Admin comment */}
           {contract.adminComment && (
             <motion.div
@@ -194,11 +400,6 @@ export default function ContractDetailPage() {
                 <h2 className="text-sm font-semibold">Admin Comment</h2>
               </div>
               <p className="text-sm text-muted-foreground">{contract.adminComment}</p>
-              {contract.approvedAt && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  — {contract.signatoryName}, {contract.signatoryTitle} · {new Date(contract.approvedAt).toLocaleDateString()}
-                </p>
-              )}
             </motion.div>
           )}
         </div>
@@ -216,7 +417,7 @@ export default function ContractDetailPage() {
             <div className="space-y-3">
               {[
                 { icon: Building2, label: "Company", value: contract.companyName },
-                { icon: FileSignature, label: "Type", value: contract.purpose.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) },
+                { icon: FileSignature, label: "Type", value: contract.purpose.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) },
                 { icon: Shield, label: "Department", value: contract.department },
                 { icon: Calendar, label: "Duration", value: contract.duration },
                 { icon: MapPin, label: "Location", value: [contract.location.city, contract.location.state, contract.location.country].filter(Boolean).join(", ") || "N/A" },
@@ -239,23 +440,61 @@ export default function ContractDetailPage() {
           </div>
 
           {/* Signature Info */}
-          {contract.status === "approved" && contract.signatoryName && (
-            <div className="glass-card rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800/40">
+          {contract.status === "approved" && (
+            <div className="glass-card rounded-2xl p-5 border border-border/60">
               <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <FileSignature className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                Official Signature
+                Signoff Status
               </h2>
-              <p className="text-sm font-medium">{contract.signatoryName}</p>
-              <p className="text-xs text-muted-foreground">{contract.signatoryTitle}</p>
-              <p className="text-xs text-muted-foreground mt-1">{contract.companyName}</p>
-              <div className="mt-3 h-px bg-border" />
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
-                ✓ Digitally signed & verified
-              </p>
+              {signature ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Signed Digitally by:</p>
+                  <p className="text-sm font-semibold text-foreground">{user?.fullName || "User"}</p>
+                  <div className="bg-slate-900 border border-border/50 p-2 rounded-lg flex items-center justify-center h-20 overflow-hidden mt-1">
+                    <img src={signature.signature_image} alt="Signature" className="max-h-full max-w-full object-contain filter invert dark:invert-0" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Signed on {new Date(signature.signed_at).toLocaleString()}</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+                    ✓ Verified Contract Signature
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                    This contract is approved by the admin and awaits your formal digital signature to be finalized.
+                  </p>
+                  <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5" onClick={() => setShowSignModal(true)}>
+                    <PenTool className="h-3.5 w-3.5" /> Sign Contract Now
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </motion.div>
       </div>
+
+      {/* Signature Modal */}
+      {showSignModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-card border border-border/80 rounded-2xl shadow-xl w-full max-w-md p-6 relative"
+          >
+            <button
+              onClick={() => setShowSignModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="text-lg font-bold mb-1">Digitally Sign Contract</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Draw your signature in the panel below. By clicking confirm, you agree to embed this signature into the official contract document.
+            </p>
+            <SignaturePad onSave={handleSaveSignature} />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -406,7 +406,7 @@ export const AI_STARTER_MESSAGES: ChatMessage[] = [
   {
     id: "ai-welcome",
     role: "assistant",
-    content: "Hello! I'm ContractAI, your intelligent contract assistant. I can help you:\n\n• **Generate** professional contracts tailored to your needs\n• **Explain** complex legal clauses in plain language\n• **Review** contracts and identify potential risks\n• **Answer** questions about your agreements\n\nWhat can I help you with today?",
+    content: "Hello! I'm Accord, your intelligent contract assistant. I can help you:\n\n• **Generate** professional contracts tailored to your needs\n• **Explain** complex legal clauses in plain language\n• **Review** contracts and identify potential risks\n• **Answer** questions about your agreements\n\nWhat can I help you with today?",
     timestamp: new Date().toISOString(),
   },
 ];

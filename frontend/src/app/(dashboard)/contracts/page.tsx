@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACTS } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabase";
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "info" | "secondary" | "outline"; icon: React.ElementType }> = {
   draft: { label: "Draft", variant: "secondary", icon: FileText },
@@ -32,16 +33,55 @@ const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" 
 const FILTER_OPTIONS = ["All", "Draft", "Pending", "Approved", "Rejected", "Changes Needed"];
 
 export default function ContractsPage() {
+  const { user } = useUser();
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
 
-  const filtered = CONTRACTS.filter((c) => {
+  useEffect(() => {
+    async function fetchContracts() {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("contracts")
+        .select("*, companies(company_name)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setContracts(data.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          status: c.status.toLowerCase().replace(/\s+/g, "_") as ContractStatus,
+          createdAt: c.created_at,
+          companyName: c.companies?.company_name || c.purpose || "Contract",
+          department: c.purpose,
+          salary: c.salary || "",
+          riskScore: c.risk_score || 0,
+          adminComment: c.review_comments || "",
+        })));
+      }
+      setLoading(false);
+    }
+    fetchContracts();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const filtered = contracts.filter((c) => {
     const matchSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.companyName.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
       filter === "All" ||
-      (filter === "Pending" && c.status === "pending") ||
+      (filter === "Pending" && (c.status === "pending" || c.status === "pending_review")) ||
       (filter === "Approved" && c.status === "approved") ||
       (filter === "Rejected" && c.status === "rejected") ||
       (filter === "Draft" && c.status === "draft") ||
@@ -59,7 +99,7 @@ export default function ContractsPage() {
       >
         <div>
           <h1 className="text-2xl font-bold">My Contracts</h1>
-          <p className="text-muted-foreground mt-1">{CONTRACTS.length} contracts total</p>
+          <p className="text-muted-foreground mt-1">{contracts.length} contracts total</p>
         </div>
         <Link href="/contracts/create">
           <Button className="gap-2" id="contracts-create-new">
@@ -119,7 +159,7 @@ export default function ContractsPage() {
           </div>
         ) : (
           filtered.map((contract, i) => {
-            const status = STATUS_CONFIG[contract.status];
+            const status = STATUS_CONFIG[contract.status as ContractStatus] || STATUS_CONFIG.draft;
             const Icon = status.icon;
             return (
               <motion.div

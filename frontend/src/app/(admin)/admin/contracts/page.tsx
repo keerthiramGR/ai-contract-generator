@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Search, Clock, CheckCircle2, XCircle, FileText, ArrowRight, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACTS } from "@/lib/mock-data";
 import { ContractStatus } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "info" | "secondary" | "outline" }> = {
   draft: { label: "Draft", variant: "secondary" },
@@ -16,13 +16,54 @@ const STATUS_CONFIG: Record<ContractStatus, { label: string; variant: "default" 
   changes_requested: { label: "Changes Needed", variant: "info" },
 };
 
+const mapStatus = (dbStatus: string): ContractStatus => {
+  const s = dbStatus.toLowerCase();
+  if (s.includes("pending")) return "pending";
+  if (s.includes("approved")) return "approved";
+  if (s.includes("rejected")) return "rejected";
+  if (s.includes("changes") || s.includes("requested")) return "changes_requested";
+  return "draft";
+};
+
 const FILTERS = ["All", "Pending", "Approved", "Rejected", "Changes Needed"];
 
 export default function AdminContractsPage() {
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
 
-  const filtered = CONTRACTS.filter((c) => {
+  useEffect(() => {
+    async function loadContracts() {
+      const { data: contractsData, error } = await supabase
+        .from("contracts")
+        .select("*, profiles(full_name, email)");
+
+      if (!error && contractsData) {
+        setContracts(contractsData.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          status: mapStatus(c.status),
+          createdAt: c.created_at,
+          userName: c.profiles?.full_name || "User",
+          userEmail: c.profiles?.email || "No Email",
+          riskScore: c.risk_score || 0,
+        })));
+      }
+      setLoading(false);
+    }
+    loadContracts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const filtered = contracts.filter((c) => {
     const matchSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.userName.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
       filter === "All" ||
@@ -33,7 +74,7 @@ export default function AdminContractsPage() {
     return matchSearch && matchFilter;
   });
 
-  const pendingCount = CONTRACTS.filter((c) => c.status === "pending").length;
+  const pendingCount = contracts.filter((c) => c.status === "pending").length;
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto">
@@ -86,7 +127,7 @@ export default function AdminContractsPage() {
       {/* Contracts */}
       <div className="space-y-3">
         {filtered.map((contract, i) => {
-          const status = STATUS_CONFIG[contract.status];
+          const status = STATUS_CONFIG[contract.status as ContractStatus] || STATUS_CONFIG.draft;
           const isPending = contract.status === "pending";
           return (
             <motion.div

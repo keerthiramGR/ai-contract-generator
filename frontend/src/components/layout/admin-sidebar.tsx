@@ -39,7 +39,7 @@ export function AdminSidebar({ collapsed, setCollapsed }: AdminSidebarProps) {
   return (
     <motion.aside
       animate={{ width: collapsed ? 72 : 256 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       className="relative hidden lg:flex flex-col h-screen sticky top-0 border-r border-border/50 bg-slate-950 dark:bg-slate-950 overflow-hidden shrink-0"
     >
       {/* Logo */}
@@ -133,10 +133,10 @@ export function AdminSidebar({ collapsed, setCollapsed }: AdminSidebarProps) {
       {/* Footer */}
       <div className={cn("p-3 border-t border-slate-800", collapsed && "flex justify-center")}>
         {collapsed ? (
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
         ) : (
           <div className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-800 transition-colors">
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-slate-200 truncate">{user?.fullName || "Admin"}</p>
               <p className="text-xs text-slate-500 truncate">Company Admin</p>
